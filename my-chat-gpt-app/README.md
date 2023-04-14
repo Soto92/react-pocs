@@ -28,6 +28,10 @@
    $ npm run start
    ```
 
+## Screen shots
+
+![screenShot](./src/img/Captura%20de%20tela%20de%202023-04-13%2023-50-54.png)
+
 ## Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
