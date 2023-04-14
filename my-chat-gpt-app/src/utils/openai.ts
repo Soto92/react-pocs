@@ -6,7 +6,7 @@ const configuration = new Configuration({
 
 const openai = new OpenAIApi(configuration);
 
-export async function getAnswer(question: string): Promise<string | undefined> {
+export async function getAnswer(question: string): Promise<string> {
   if (!configuration.apiKey) {
     console.log(
       "OpenAI API key not configured, please follow instructions in README.md"
@@ -30,9 +30,6 @@ export async function getAnswer(question: string): Promise<string | undefined> {
     return completion.data.choices[0].text || ' ';
   } catch (error: any) {
     console.log(error?.message);
+    return "Desculpe, buguei aqui, pode repetir?"
   }
-}
-
-function generatePrompt(question: string): string {
-  return question;
 }
