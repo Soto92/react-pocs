@@ -8,28 +8,45 @@ import React, { useEffect, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "./App.css";
+import { findAvailableTimeSlots } from "./utils";
 
 function App() {
   const backendURL = "http://localhost:3001/api";
-  const [meetings, setMeetings] = useState([]);
+  const [host, setHost] = useState({});
+  const [guest, setGuest] = useState({});
+  const [suggestions, setSuggestions] = useState([]);
+
   const [newMeeting, setNewMeeting] = useState({
     title: "",
     date: new Date(),
     startTime: "",
     endTime: "",
+    attendees: [],
   });
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    axios
-      .get(`${backendURL}/meetings`)
+  const updateSuggestions = (date) => {
+    const hostMeetings = host.meetings;
+    const guestMeetings = guest.meetings;
+    const meetings = [...hostMeetings, ...guestMeetings];
+    setSuggestions(findAvailableTimeSlots(meetings, date));
+  };
+
+  const fetchUsers = async () => {
+    await axios
+      .get(`${backendURL}/users`)
       .then((response) => {
-        setMeetings(response.data);
+        setHost(response.data[0]);
+        setGuest(response.data[1]);
       })
       .catch((error) => setError(error.message));
+  };
+
+  useEffect(() => {
+    fetchUsers();
   }, []);
 
-  const isHostScheduled = (meetings, newMeeting) => {
+  const isSlotBusy = (meetings, newMeeting) => {
     const targetDate = new Date(newMeeting.date).toISOString().split("T")[0];
     return meetings.some(
       (meeting) =>
@@ -46,15 +63,30 @@ function App() {
   const handleAddMeeting = () => {
     const { title, date, startTime, endTime } = newMeeting;
 
-    if (isHostScheduled(meetings, newMeeting)) {
+    const hostMeetings = host.meetings;
+    const guestMeetings = guest.meetings;
+    const meetings = [...hostMeetings, ...guestMeetings];
+    if (isSlotBusy(meetings, newMeeting)) {
       setError("Host is already scheduled for a meeting this time!");
       return;
     }
     axios
-      .post(`${backendURL}/meetings`, { title, date, startTime, endTime })
-      .then((response) => {
-        setMeetings([...meetings, response.data]);
-        setNewMeeting({ title: "", date: null, startTime: "", endTime: "" });
+      .post(`${backendURL}/meetings`, {
+        title,
+        date,
+        startTime,
+        endTime,
+        attendees: [host.userId, guest.userId],
+      })
+      .then(() => {
+        fetchUsers();
+        setNewMeeting({
+          title: "",
+          date: null,
+          startTime: "",
+          endTime: "",
+          attendees: [],
+        });
       })
       .catch((error) => setError(error.message));
   };
@@ -63,14 +95,14 @@ function App() {
     axios
       .delete(`${backendURL}/meetings/${id}`)
       .then((response) => {
-        setMeetings(meetings.filter((meeting, index) => index !== id));
+        fetchUsers();
       })
       .catch((error) => setError(error.message));
   };
 
   const handleDateChange = (date) => {
-    console.log({ date });
     setNewMeeting({ ...newMeeting, date });
+    updateSuggestions(date);
   };
 
   const generateTimeOptions = () => {
@@ -94,11 +126,25 @@ function App() {
       <div>
         <h2>Scheduled Meetings</h2>
         <ul>
-          {meetings.map((meeting, index) => (
+          <p>Your meetings:</p>
+          {host?.meetings?.map((meeting, index) => (
             <li key={index}>
               {meeting.title} - {meeting.date} {meeting.startTime} to{" "}
               {meeting.endTime}
-              <button onClick={() => handleRemoveMeeting(index)}>Remove</button>
+              <button onClick={() => handleRemoveMeeting(meeting.id)}>
+                Remove
+              </button>
+            </li>
+          ))}
+
+          <p>Guest meetings:</p>
+          {guest?.meetings?.map((meeting, index) => (
+            <li key={index}>
+              {meeting.title} - {meeting.date} {meeting.startTime} to{" "}
+              {meeting.endTime}
+              <button onClick={() => handleRemoveMeeting(meeting.id)}>
+                Remove
+              </button>
             </li>
           ))}
         </ul>
@@ -114,34 +160,63 @@ function App() {
           }
         />
         <Calendar value={newMeeting.date} onChange={handleDateChange} />
-
-        <label>Start Time:</label>
-        <select
-          value={newMeeting.startTime}
-          onChange={(e) =>
-            setNewMeeting({ ...newMeeting, startTime: e.target.value })
-          }
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width: 400,
+            alignSelf: "auto",
+          }}
         >
-          {generateTimeOptions().map((time, index) => (
-            <option key={index} value={time}>
-              {newMeeting.date ? `${newMeeting.date} ${time}` : time}
-            </option>
-          ))}
-        </select>
+          <label>Start Time:</label>
+          <select
+            value={newMeeting.startTime}
+            onChange={(e) =>
+              setNewMeeting({ ...newMeeting, startTime: e.target.value })
+            }
+          >
+            {generateTimeOptions().map((time, index) => (
+              <option key={index} value={time}>
+                {newMeeting.date ? `${newMeeting.date} ${time}` : time}
+              </option>
+            ))}
+          </select>
 
-        <label>End Time:</label>
-        <select
-          value={newMeeting.endTime}
-          onChange={(e) =>
-            setNewMeeting({ ...newMeeting, endTime: e.target.value })
-          }
-        >
-          {generateTimeOptions().map((time, index) => (
-            <option key={index} value={time}>
-              {newMeeting.date ? `${newMeeting.date} ${time}` : time}
-            </option>
-          ))}
-        </select>
+          <label>End Time:</label>
+          <select
+            value={newMeeting.endTime}
+            onChange={(e) =>
+              setNewMeeting({ ...newMeeting, endTime: e.target.value })
+            }
+          >
+            {generateTimeOptions().map((time, index) => (
+              <option key={index} value={time}>
+                {newMeeting.date ? `${newMeeting.date} ${time}` : time}
+              </option>
+            ))}
+          </select>
+
+          <label>Suggestions:</label>
+          <select
+            value={`${newMeeting.startTime}-${newMeeting.endTime}`}
+            onChange={(e) => {
+              const [startTime, endTime] = e.target.value.split("-");
+              setNewMeeting({
+                ...newMeeting,
+                endTime,
+                startTime,
+              });
+            }}
+          >
+            {suggestions.map((s, index) => {
+              return (
+                <option key={index} value={`${s.start}-${s.end}`}>
+                  {s.start} - {s.end}
+                </option>
+              );
+            })}
+          </select>
+        </div>
 
         <button onClick={handleAddMeeting}>Add Meeting</button>
       </div>

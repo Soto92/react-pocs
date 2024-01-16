@@ -6,27 +6,55 @@ const PORT = 3001;
 
 app.use(bodyParser.json());
 app.use(cors());
+
 let meetings = [
   {
-    title: "101 with Mauricio",
-    date: "2023-12-22T00:00:00.000Z",
-    startTime: "11:00",
-    endTime: "11:30",
+    title: "101",
+    date: "2024-01-17T00:00:00.000Z",
+    startTime: "08:00",
+    endTime: "10:30",
+    id: "01",
+    attendees: ["host-00", "guest-01"],
   },
   {
     title: "Daily",
-    date: "2023-12-22T00:00:00.000Z",
+    date: "2024-01-17T00:00:00.000Z",
     startTime: "02:30",
     endTime: "03:00",
+    id: "02",
+    attendees: ["host-00", "guest-01"],
+  },
+  {
+    title: "Training - Design Patterns",
+    date: "2024-01-17T00:00:00.000Z",
+    startTime: "03:30",
+    endTime: "06:00",
+    id: "03",
+    attendees: ["host-xx", "guest-01"],
   },
 ];
 
-app.get("/api/meetings", (req, res) => {
-  res.json(meetings);
+const guidGenerator = () => Date.now().toString();
+
+const refreshUsers = () => [
+  {
+    name: "Mauricio",
+    meetings: meetings.filter((m) => m.attendees.includes("host-00")),
+    userId: "host-00",
+  },
+  {
+    name: "John",
+    meetings: meetings.filter((m) => m.attendees.includes("guest-01")),
+    userId: "guest-01",
+  },
+];
+
+app.get("/api/users", (req, res) => {
+  res.json(refreshUsers());
 });
 
 app.post("/api/meetings", (req, res) => {
-  const { title, date, startTime, endTime } = req.body;
+  const { title, date, startTime, endTime, attendees } = req.body;
 
   if (!title || !date || !startTime || !endTime) {
     return res
@@ -34,19 +62,29 @@ app.post("/api/meetings", (req, res) => {
       .json({ error: "Invalid request. Missing required fields." });
   }
 
-  const newMeeting = { title, date, startTime, endTime };
+  const newMeeting = {
+    title,
+    date,
+    startTime,
+    endTime,
+    attendees,
+    id: guidGenerator(),
+  };
   meetings.push(newMeeting);
+
+  refreshUsers();
   res.json(newMeeting);
 });
 
 app.delete("/api/meetings/:id", (req, res) => {
   const id = req.params.id;
 
-  if (id < 0 || id >= meetings.length) {
+  if (id.length === 0) {
     return res.status(404).json({ error: "Meeting not found." });
   }
 
-  meetings = meetings.filter((meeting, index) => index !== id);
+  meetings = meetings.filter((meeting) => meeting.id !== id);
+  refreshUsers();
   res.json({ message: "Meeting removed successfully." });
 });
 
