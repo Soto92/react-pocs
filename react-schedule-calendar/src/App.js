@@ -14,6 +14,7 @@ function App() {
   const backendURL = "http://localhost:3001/api";
   const [host, setHost] = useState({});
   const [guest, setGuest] = useState({});
+  const [users, setUsers] = useState({});
   const [suggestions, setSuggestions] = useState([]);
 
   const [newMeeting, setNewMeeting] = useState({
@@ -36,8 +37,12 @@ function App() {
     await axios
       .get(`${backendURL}/users`)
       .then((response) => {
-        setHost(response.data[0]);
-        setGuest(response.data[1]);
+        const allUsers = response.data;
+        const firstElement = allUsers.shift();
+        setHost(firstElement);
+        setUsers(allUsers);
+        console.log(allUsers);
+        console.log(firstElement);
       })
       .catch((error) => setError(error.message));
   };
@@ -138,13 +143,27 @@ function App() {
           ))}
 
           <p>Guest meetings:</p>
+          <label>Users:</label>
+          <select
+            value={`${guest.userId}`}
+            onChange={(e) => {
+              const user = users?.find((el) => el.userId === e.target.value);
+              setGuest(user);
+            }}
+          >
+            {users.length > 0 &&
+              users?.map((user, index) => {
+                return (
+                  <option key={index} value={`${user.userId}`}>
+                    {user.name}
+                  </option>
+                );
+              })}
+          </select>
           {guest?.meetings?.map((meeting, index) => (
             <li key={index}>
               {meeting.title} - {meeting.date} {meeting.startTime} to{" "}
               {meeting.endTime}
-              <button onClick={() => handleRemoveMeeting(meeting.id)}>
-                Remove
-              </button>
             </li>
           ))}
         </ul>

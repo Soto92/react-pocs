@@ -32,6 +32,14 @@ let meetings = [
     id: "03",
     attendees: ["host-xx", "guest-01"],
   },
+  {
+    title: "Training - QA",
+    date: "2024-01-17T00:00:00.000Z",
+    startTime: "06:30",
+    endTime: "17:00",
+    id: "04",
+    attendees: ["guest-04", "guest-02"],
+  },
 ];
 
 const guidGenerator = () => Date.now().toString();
@@ -46,6 +54,11 @@ const refreshUsers = () => [
     name: "John",
     meetings: meetings.filter((m) => m.attendees.includes("guest-01")),
     userId: "guest-01",
+  },
+  {
+    name: "Gohan",
+    meetings: meetings.filter((m) => m.attendees.includes("guest-02")),
+    userId: "guest-02",
   },
 ];
 
