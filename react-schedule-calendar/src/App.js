@@ -3,15 +3,19 @@
 https://github.com/diegopacheco/tech-resources/blob/master/react-native-resources.md#ooad-challenges-round-2
  */
 
-import axios from "axios";
 import React, { useEffect, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "./App.css";
-import { findAvailableTimeSlots } from "./utils";
+import { MeetingScheduler } from "./MeetingsScheduleManager";
+import { ApiManager } from "./Service";
+import { findAvailableTimeSlots, generateTimeOptions } from "./utils";
 
 function App() {
   const backendURL = "http://localhost:3001/api";
+  const apiManager = new ApiManager(backendURL);
+  const meetingScheduler = new MeetingScheduler(apiManager);
+
   const [host, setHost] = useState({});
   const [guest, setGuest] = useState({});
   const [users, setUsers] = useState({});
@@ -34,15 +38,13 @@ function App() {
   };
 
   const fetchUsers = async () => {
-    await axios
-      .get(`${backendURL}/users`)
+    await meetingScheduler
+      .fetchUsers()
       .then((response) => {
-        const allUsers = response.data;
+        const allUsers = response;
         const firstElement = allUsers.shift();
         setHost(firstElement);
         setUsers(allUsers);
-        console.log(allUsers);
-        console.log(firstElement);
       })
       .catch((error) => setError(error.message));
   };
@@ -51,75 +53,16 @@ function App() {
     fetchUsers();
   }, []);
 
-  const isSlotBusy = (meetings, newMeeting) => {
-    const targetDate = new Date(newMeeting.date).toISOString().split("T")[0];
-    return meetings.some(
-      (meeting) =>
-        new Date(meeting.date).toISOString().split("T")[0] === targetDate &&
-        ((meeting.startTime >= newMeeting.startTime &&
-          meeting.startTime < newMeeting.endTime) ||
-          (meeting.endTime > newMeeting.startTime &&
-            meeting.endTime <= newMeeting.endTime) ||
-          (meeting.startTime <= newMeeting.startTime &&
-            meeting.endTime >= newMeeting.endTime))
-    );
-  };
-
-  const handleAddMeeting = () => {
-    const { title, date, startTime, endTime } = newMeeting;
-
-    const hostMeetings = host.meetings;
-    const guestMeetings = guest.meetings;
-    const meetings = [...hostMeetings, ...guestMeetings];
-    if (isSlotBusy(meetings, newMeeting)) {
-      setError("Host is already scheduled for a meeting this time!");
-      return;
-    }
-    axios
-      .post(`${backendURL}/meetings`, {
-        title,
-        date,
-        startTime,
-        endTime,
-        attendees: [host.userId, guest.userId],
-      })
-      .then(() => {
-        fetchUsers();
-        setNewMeeting({
-          title: "",
-          date: null,
-          startTime: "",
-          endTime: "",
-          attendees: [],
-        });
-      })
-      .catch((error) => setError(error.message));
-  };
-
-  const handleRemoveMeeting = (id) => {
-    axios
-      .delete(`${backendURL}/meetings/${id}`)
-      .then((response) => {
-        fetchUsers();
-      })
-      .catch((error) => setError(error.message));
+  const handleAddMeeting = async () => {
+    await meetingScheduler
+      .scheduleMeeting(newMeeting, host, guest)
+      .then(() => fetchUsers())
+      .catch((e) => setError(e.message));
   };
 
   const handleDateChange = (date) => {
     setNewMeeting({ ...newMeeting, date });
     updateSuggestions(date);
-  };
-
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let i = 0; i < 24; i++) {
-      for (let j = 0; j < 60; j += 30) {
-        const hour = i < 10 ? `0${i}` : `${i}`;
-        const minute = j === 0 ? "00" : "30";
-        options.push(`${hour}:${minute}`);
-      }
-    }
-    return options;
   };
 
   return (
@@ -136,7 +79,16 @@ function App() {
             <li key={index}>
               {meeting.title} - {meeting.date} {meeting.startTime} to{" "}
               {meeting.endTime}
-              <button onClick={() => handleRemoveMeeting(meeting.id)}>
+              <button
+                onClick={() =>
+                  meetingScheduler
+                    .removeMeeting(meeting.id)
+                    .then(() => {
+                      fetchUsers();
+                    })
+                    .catch((error) => setError(error.message))
+                }
+              >
                 Remove
               </button>
             </li>

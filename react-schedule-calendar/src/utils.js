@@ -55,3 +55,15 @@ function convertMinutesToTime(minutes) {
   const mins = minutes % 60;
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
+
+export const generateTimeOptions = () => {
+  const options = [];
+  for (let i = 0; i < 24; i++) {
+    for (let j = 0; j < 60; j += 30) {
+      const hour = i < 10 ? `0${i}` : `${i}`;
+      const minute = j === 0 ? "00" : "30";
+      options.push(`${hour}:${minute}`);
+    }
+  }
+  return options;
+};
