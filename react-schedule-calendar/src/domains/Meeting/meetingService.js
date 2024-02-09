@@ -1,14 +1,23 @@
-class MeetingScheduler {
-  constructor(apiManager) {
-    this.apiManager = apiManager;
+import ServiceAPI from "../ServiceApi/serviceApi";
+
+class MeetingService {
+  constructor() {
+    this.serviceAPI = new ServiceAPI();
   }
 
-  async fetchUsers() {
+  async addMeeting(meetingData) {
     try {
-      const users = await this.apiManager.getUsers();
-      return users;
+      const response = await this.serviceAPI("POST", `/meetings`, meetingData);
+      return response.data;
     } catch (error) {
-      throw new Error(`Failed to fetch users: ${error.message}`);
+      throw new Error(`Failed to add meeting: ${error.message}`);
+    }
+  }
+  async removeMeeting(meetingId) {
+    try {
+      await this.serviceAPI("DELETE", `/meetings/${meetingId}`);
+    } catch (error) {
+      throw new Error(`Failed to remove meeting: ${error.message}`);
     }
   }
 
@@ -21,27 +30,15 @@ class MeetingScheduler {
       if (this.isSlotBusy(meetings, newMeeting)) {
         throw new Error("Host is already scheduled for a meeting this time!");
       }
-
-      await this.apiManager.addMeeting({
+      await this.addMeeting({
         title: newMeeting.title,
         date: newMeeting.date,
         startTime: newMeeting.startTime,
         endTime: newMeeting.endTime,
         attendees: [host.userId, guest.userId],
       });
-
-      await this.fetchUsers();
     } catch (error) {
       throw new Error(`Failed to schedule meeting: ${error.message}`);
-    }
-  }
-
-  async removeMeeting(meetingId) {
-    try {
-      await this.apiManager.removeMeeting(meetingId);
-      await this.fetchUsers();
-    } catch (error) {
-      throw new Error(`Failed to remove meeting: ${error.message}`);
     }
   }
 
@@ -60,4 +57,4 @@ class MeetingScheduler {
   }
 }
 
-export { MeetingScheduler };
+export default MeetingService;
